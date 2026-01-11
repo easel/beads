@@ -1250,6 +1250,9 @@ func TestInitReinitWithBranch(t *testing.T) {
 // gitignore file cannot be written (prints manual instructions instead of failing).
 func TestSetupGlobalGitIgnore_ReadOnly(t *testing.T) {
 	t.Run("read-only file", func(t *testing.T) {
+		// Isolate from user's global git config
+		t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+
 		tmpDir := t.TempDir()
 		configDir := filepath.Join(tmpDir, ".config", "git")
 		if err := os.MkdirAll(configDir, 0755); err != nil {
@@ -1260,10 +1263,16 @@ func TestSetupGlobalGitIgnore_ReadOnly(t *testing.T) {
 		if err := os.WriteFile(ignorePath, []byte("# existing\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
+		// Make the file read-only to prevent in-place writes
 		if err := os.Chmod(ignorePath, 0444); err != nil {
 			t.Fatal(err)
 		}
 		defer os.Chmod(ignorePath, 0644)
+		// Make the directory read-only to prevent file deletion/replacement
+		if err := os.Chmod(configDir, 0555); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chmod(configDir, 0755)
 
 		output := captureStdout(t, func() error {
 			return setupGlobalGitIgnore(tmpDir, "/test/project", false)
@@ -1278,6 +1287,9 @@ func TestSetupGlobalGitIgnore_ReadOnly(t *testing.T) {
 	})
 
 	t.Run("symlink to read-only file", func(t *testing.T) {
+		// Isolate from user's global git config
+		t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+
 		tmpDir := t.TempDir()
 
 		// Target file in a separate location
@@ -1289,10 +1301,16 @@ func TestSetupGlobalGitIgnore_ReadOnly(t *testing.T) {
 		if err := os.WriteFile(targetFile, []byte("# existing\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
+		// Make the file read-only to prevent in-place writes
 		if err := os.Chmod(targetFile, 0444); err != nil {
 			t.Fatal(err)
 		}
 		defer os.Chmod(targetFile, 0644)
+		// Make target directory read-only to prevent file deletion/replacement
+		if err := os.Chmod(targetDir, 0555); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chmod(targetDir, 0755)
 
 		// Symlink from expected location
 		configDir := filepath.Join(tmpDir, ".config", "git")
