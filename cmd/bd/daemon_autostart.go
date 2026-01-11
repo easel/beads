@@ -215,6 +215,15 @@ func isDaemonHealthy(socketPath string) bool {
 }
 
 func acquireStartLock(lockPath, socketPath string) bool {
+	return acquireStartLockWithRetry(lockPath, socketPath, 3)
+}
+
+func acquireStartLockWithRetry(lockPath, socketPath string, retriesLeft int) bool {
+	if retriesLeft <= 0 {
+		debugLog("failed to acquire startlock after max retries")
+		return false
+	}
+
 	// nolint:gosec // G304: lockPath is derived from secure beads directory
 	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
@@ -223,9 +232,12 @@ func acquireStartLock(lockPath, socketPath string) bool {
 		if pidErr != nil || !isPIDAlive(lockPID) {
 			// Stale lock from crashed process - clean up immediately (avoids 5s wait)
 			debugLog("startlock is stale (PID %d dead or unreadable), cleaning up", lockPID)
-			_ = os.Remove(lockPath)
+			if removeErr := os.Remove(lockPath); removeErr != nil {
+				debugLog("failed to remove stale startlock: %v", removeErr)
+				return false
+			}
 			// Retry lock acquisition after cleanup
-			return acquireStartLock(lockPath, socketPath)
+			return acquireStartLockWithRetry(lockPath, socketPath, retriesLeft-1)
 		}
 
 		// PID is alive - but is daemon actually running/starting?
@@ -234,8 +246,11 @@ func acquireStartLock(lockPath, socketPath string) bool {
 		if running, _ := lockfile.TryDaemonLock(beadsDir); !running {
 			// Daemon lock not held - the start attempt failed or process was reused
 			debugLog("startlock PID %d alive but daemon lock not held, cleaning up", lockPID)
-			_ = os.Remove(lockPath)
-			return acquireStartLock(lockPath, socketPath)
+			if removeErr := os.Remove(lockPath); removeErr != nil {
+				debugLog("failed to remove startlock: %v", removeErr)
+				return false
+			}
+			return acquireStartLockWithRetry(lockPath, socketPath, retriesLeft-1)
 		}
 
 		// Daemon lock is held - daemon is legitimately starting, wait for socket
