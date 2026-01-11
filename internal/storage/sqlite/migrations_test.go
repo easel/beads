@@ -471,6 +471,7 @@ func TestMigrateContentHashColumn(t *testing.T) {
 				estimated_minutes INTEGER,
 				created_at DATETIME NOT NULL,
 				created_by TEXT DEFAULT '',
+				owner TEXT DEFAULT '',
 				updated_at DATETIME NOT NULL,
 				closed_at DATETIME,
 				external_ref TEXT,
@@ -511,7 +512,7 @@ func TestMigrateContentHashColumn(t *testing.T) {
 				defer_until DATETIME,
 				CHECK ((status = 'closed') = (closed_at IS NOT NULL))
 			);
-			INSERT INTO issues SELECT id, title, description, design, acceptance_criteria, notes, status, priority, issue_type, assignee, estimated_minutes, created_at, '', updated_at, closed_at, external_ref, compaction_level, compacted_at, original_size, compacted_at_commit, source_repo, '', NULL, '', '', '', '', 0, 0, 0, '', '', '', '', '', '', 0, '', '', '', '', NULL, '', '', '', '', '', '', '', NULL, NULL FROM issues_backup;
+			INSERT INTO issues SELECT id, title, description, design, acceptance_criteria, notes, status, priority, issue_type, assignee, estimated_minutes, created_at, '', '', updated_at, closed_at, external_ref, compaction_level, compacted_at, original_size, compacted_at_commit, source_repo, '', NULL, '', '', '', '', 0, 0, 0, '', '', '', '', '', '', 0, '', '', '', '', NULL, '', '', '', '', '', '', '', NULL, NULL FROM issues_backup;
 			DROP TABLE issues_backup;
 		`)
 		if err != nil {

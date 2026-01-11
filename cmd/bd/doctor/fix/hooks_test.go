@@ -617,6 +617,9 @@ func TestDetectActiveHookManager(t *testing.T) {
 			// Write hook file
 			if tt.hookContent != "" {
 				hooksDir := filepath.Join(dir, ".git", "hooks")
+				if err := os.MkdirAll(hooksDir, 0755); err != nil {
+					t.Fatalf("failed to create hooks dir: %v", err)
+				}
 				hookPath := filepath.Join(hooksDir, "pre-commit")
 				if err := os.WriteFile(hookPath, []byte(tt.hookContent), 0755); err != nil {
 					t.Fatalf("failed to write hook: %v", err)
